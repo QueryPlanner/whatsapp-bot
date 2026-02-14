@@ -467,6 +467,47 @@ func handleMessage(client *whatsmeow.Client, messageStore *MessageStore, msg *ev
 		} else if content != "" {
 			fmt.Printf("[%s] %s %s: %s\n", timestamp, direction, sender, content)
 		}
+
+		// Webhook: notify auto-reply service for incoming DMs only
+		// Skip: groups (@g.us), messages from self, empty messages
+		if !msg.Info.IsFromMe && msg.Info.Chat.Server == "s.whatsapp.net" && content != "" {
+			go notifyWebhook(chatJID, sender, name, content, msg.Info.Timestamp, logger)
+		}
+	}
+}
+
+// notifyWebhook sends a POST to the configured webhook URL for incoming DMs
+func notifyWebhook(chatJID, sender, senderName, content string, timestamp time.Time, logger waLog.Logger) {
+	webhookURL := os.Getenv("WEBHOOK_URL")
+	if webhookURL == "" {
+		webhookURL = "http://localhost:8888/webhook/whatsapp"
+	}
+
+	payload := map[string]interface{}{
+		"chat_jid":    chatJID,
+		"sender":      sender,
+		"sender_name": senderName,
+		"content":     content,
+		"timestamp":   timestamp.Format(time.RFC3339),
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		logger.Warnf("Webhook: failed to marshal payload: %v", err)
+		return
+	}
+
+	resp, err := http.Post(webhookURL, "application/json", bytes.NewReader(body))
+	if err != nil {
+		logger.Warnf("Webhook: failed to POST to %s: %v", webhookURL, err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		logger.Warnf("Webhook: unexpected status %d from %s", resp.StatusCode, webhookURL)
+	} else {
+		logger.Infof("Webhook: notified %s for message from %s", webhookURL, sender)
 	}
 }
 
@@ -895,11 +936,17 @@ func main() {
 		connected <- true
 	}
 
-	// Wait a moment for connection to stabilize
-	time.Sleep(2 * time.Second)
+	// Wait for connection to stabilize (retry for up to 10 seconds)
+	for i := 0; i < 10; i++ {
+		time.Sleep(1 * time.Second)
+		if client.IsConnected() {
+			break
+		}
+		fmt.Printf("Waiting for connection to stabilize... (%d/10)\n", i+1)
+	}
 
 	if !client.IsConnected() {
-		logger.Errorf("Failed to establish stable connection")
+		logger.Errorf("Failed to establish stable connection after 10 seconds")
 		return
 	}
 

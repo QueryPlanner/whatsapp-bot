@@ -98,4 +98,5 @@ conductor/
 # WhatsApp MCP (runtime data — personal messages, auth, venv)
 # ---------------------------------------------------------------------------
 whatsapp-mcp/whatsapp-bridge/store/
+whatsapp-mcp/whatsapp-bridge/whatsapp-bridge
 whatsapp-mcp/whatsapp-mcp-server/.venv/

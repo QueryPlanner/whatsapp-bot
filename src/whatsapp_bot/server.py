@@ -65,6 +65,11 @@ app: FastAPI = get_fast_api_app(
     reload_agents=env.reload_agents,
 )
 
+# Mount the WhatsApp auto-reply webhook router
+from .auto_reply import router as auto_reply_router  # noqa: E402
+
+app.include_router(auto_reply_router)
+
 
 @app.get("/health")
 async def health() -> dict[str, str]:
