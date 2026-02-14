@@ -469,15 +469,20 @@ func handleMessage(client *whatsmeow.Client, messageStore *MessageStore, msg *ev
 		}
 
 		// Webhook: notify auto-reply service for incoming DMs only
-		// Skip: groups (@g.us), messages from self, empty messages
-		if !msg.Info.IsFromMe && msg.Info.Chat.Server == "s.whatsapp.net" && content != "" {
-			go notifyWebhook(chatJID, sender, name, content, msg.Info.Timestamp, logger)
+		// Skip: groups (@g.us), empty messages
+		// Allow:
+		// 1. Messages from others (!IsFromMe)
+		// 2. Messages from self (IsFromMe) IF they start with "@agent" (to trigger bot in Note to Self)
+		isTriggerCommand := strings.HasPrefix(strings.ToLower(content), "@agent")
+
+		if (!msg.Info.IsFromMe || isTriggerCommand) && msg.Info.Chat.Server == "s.whatsapp.net" && content != "" {
+			go notifyWebhook(chatJID, sender, name, content, msg.Info.Timestamp, msg.Info.IsFromMe, logger)
 		}
 	}
 }
 
 // notifyWebhook sends a POST to the configured webhook URL for incoming DMs
-func notifyWebhook(chatJID, sender, senderName, content string, timestamp time.Time, logger waLog.Logger) {
+func notifyWebhook(chatJID, sender, senderName, content string, timestamp time.Time, isFromMe bool, logger waLog.Logger) {
 	webhookURL := os.Getenv("WEBHOOK_URL")
 	if webhookURL == "" {
 		webhookURL = "http://localhost:8888/webhook/whatsapp"
@@ -489,6 +494,7 @@ func notifyWebhook(chatJID, sender, senderName, content string, timestamp time.T
 		"sender_name": senderName,
 		"content":     content,
 		"timestamp":   timestamp.Format(time.RFC3339),
+		"is_from_me":  isFromMe,
 	}
 
 	body, err := json.Marshal(payload)

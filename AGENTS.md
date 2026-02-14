@@ -1,88 +1,258 @@
-# Google ADK on Bare Metal
+# WhatsApp Auto-Reply Bot
 
 ## Project Overview
 
-**Google ADK on Bare Metal** is a production-ready template designed for building and deploying AI agents using the Google Agent Development Kit (ADK) on self-hosted infrastructure. It removes cloud provider lock-in by providing a clean, performant, and observable foundation that runs on bare metal, VPS, or private clouds.
+This is **Chirag's WhatsApp auto-reply bot** — an AI agent that automatically replies to incoming WhatsApp direct messages on Chirag's behalf. It uses the Google Agent Development Kit (ADK) with a WhatsApp MCP integration.
+
+The bot replies **as Chirag** — casual, friendly, first-person — not as a generic assistant.
+
+### How It Works (End-to-End Flow)
+
+```
+Someone sends a WhatsApp DM to Chirag
+        ↓
+Go WhatsApp Bridge (port 8080) receives the message
+        ↓
+Bridge POSTs webhook to Python server (port 8888) at /webhook/whatsapp
+        ↓
+auto_reply.py debounces (waits 5s for more messages)
+        ↓
+ADK agent is invoked with InMemoryRunner
+        ↓
+Agent calls send_message tool via MCP → Go bridge → WhatsApp
+        ↓
+Reply delivered to sender's WhatsApp
+```
 
 ### Key Technologies
-*   **Language:** Python 3.13+
-*   **Framework:** Google ADK (`google-adk`)
-*   **Model Interface:** LiteLLM (supports Google, OpenRouter, etc.)
-*   **Server:** FastAPI
-*   **Database:** PostgreSQL (via `asyncpg`)
-*   **Observability:** OpenTelemetry (OTel) with Langfuse support
-*   **Infrastructure:** Docker, Docker Compose
+*   **Language:** Python 3.13+ (agent), Go (WhatsApp bridge)
+*   **Framework:** Google ADK (`google-adk`) with LlmAgent
+*   **Model Interface:** LiteLLM via OpenRouter
+*   **Server:** FastAPI (Uvicorn)
+*   **WhatsApp:** `whatsmeow` (Go library) + custom MCP server
+*   **Database:** PostgreSQL via `asyncpg` (session storage)
+*   **Observability:** OpenTelemetry + LoggingPlugin + custom callbacks
 
-## Building and Running
+---
+
+## Architecture
+
+The system has **three components** that must all be running:
+
+### 1. Go WhatsApp Bridge (`whatsapp-mcp/whatsapp-bridge/`)
+- Connects to WhatsApp using `go.mau.fi/whatsmeow`
+- Stores messages in a local SQLite database (`store/messages.db`)
+- Exposes a REST API on `:8080` for sending messages and querying data
+- **Webhook**: On incoming DMs, POSTs to `WEBHOOK_URL` (default: `http://localhost:8888/webhook/whatsapp`)
+- Filters: only DMs (`@s.whatsapp.net`), skips groups (`@g.us`), skips self-sent (`is_from_me`)
+- Key file: `main.go` — the `handleMessage` function triggers the webhook, `notifyWebhook` sends the POST
+
+### 2. WhatsApp MCP Server (`whatsapp-mcp/whatsapp-mcp-server/`)
+- Python FastMCP server that wraps the Go bridge REST API as MCP tools
+- Runs via stdio (spawned by the ADK agent on demand, NOT run separately)
+- Key files: `main.py` (tool definitions), `whatsapp.py` (HTTP calls to Go bridge + SQLite queries)
+- Available MCP tools: `search_contacts`, `list_messages`, `list_chats`, `get_chat`, `get_direct_chat_by_contact`, `get_last_interaction`, `send_message`
+
+### 3. Python ADK Agent Server (`src/whatsapp_bot/`)
+- FastAPI server running on `:8888`
+- Contains the ADK agent + auto-reply webhook handler
+- The agent uses `McpToolset` with `StdioConnectionParams` to spawn and connect to the MCP server
+
+---
+
+## Code Structure
+
+### `src/whatsapp_bot/` — Core Agent Code
+
+| File | Purpose |
+|------|---------|
+| `agent.py` | Defines `root_agent` (LlmAgent) and `app` (ADK App). Configures the WhatsApp MCP toolset, model, callbacks, and plugins. **App name MUST be `whatsapp_bot`** (matches directory name). |
+| `auto_reply.py` | Webhook handler at `/webhook/whatsapp`. Receives DM notifications from the Go bridge, debounces messages, manages per-contact sessions, and invokes the agent via `InMemoryRunner`. |
+| `prompt.py` | Agent prompts. The agent replies **as Chirag** — casual, friendly, first-person. Never reveals it's an AI. |
+| `server.py` | FastAPI server entry point. Loads env vars, configures ADK services, mounts the auto-reply router. |
+| `callbacks.py` | `LoggingCallbacks` class (before/after agent, model, tool) and `add_session_to_memory` callback. |
+| `tools.py` | Placeholder for custom tools (currently unused — all tools come from MCP). |
+| `utils/` | Utility modules (env loading, etc). |
+
+### `whatsapp-mcp/` — Vendored WhatsApp Integration
+
+| Directory | Purpose |
+|-----------|---------|
+| `whatsapp-bridge/` | Go binary. Connects to WhatsApp, stores messages, REST API, webhook. Must be built with `go build -o whatsapp-bridge main.go`. |
+| `whatsapp-mcp-server/` | Python MCP server. Spawned by ADK agent via stdio. Not run independently. |
+
+### Other Important Files
+
+| File | Purpose |
+|------|---------|
+| `.env` | Runtime configuration (API keys, ports, auto-reply settings) |
+| `.env.example` | Template for environment variables |
+| `pyproject.toml` | Python dependencies and project config |
+| `Dockerfile` | Multi-stage production build |
+| `compose.yaml` | Docker Compose config |
+
+---
+
+## Environment Variables
+
+### Core
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AGENT_NAME` | `local-agent` | Agent identifier |
+| `ROOT_AGENT_MODEL` | `gemini-2.5-flash` | LLM model (use `openrouter/` prefix for OpenRouter) |
+| `OPENROUTER_API_KEY` | — | OpenRouter API key |
+| `DATABASE_URL` | — | PostgreSQL connection string |
+| `HOST` | `0.0.0.0` | Server bind host |
+| `PORT` | `8888` | Server port (**not 8080** — that's the Go bridge) |
+
+### Auto-Reply
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AUTO_REPLY_ENABLED` | `true` | Global on/off switch |
+| `AUTO_REPLY_DEBOUNCE_SECONDS` | `5` | Wait time after last message before replying (batches rapid messages) |
+| `AUTO_REPLY_COOLDOWN_SECONDS` | `0.5` | Minimum gap between replies to same contact |
+| `AUTO_REPLY_IGNORE_JIDS` | — | Comma-separated JIDs to never reply to |
+| `WEBHOOK_URL` | `http://localhost:8888/webhook/whatsapp` | Set in Go bridge env to change webhook target |
+
+---
+
+## Running the Bot
 
 ### Prerequisites
-*   Python 3.13+
-*   [`uv`](https://github.com/astral-sh/uv) (Package Manager)
-*   Docker & Docker Compose (for containerized deployment)
+*   Python 3.13+ with [`uv`](https://github.com/astral-sh/uv)
+*   Go 1.21+ (for building the WhatsApp bridge)
+*   WhatsApp account linked (QR code scan on first run)
 
-### Setup
-1.  **Configure Environment:**
-    Copy `.env.example` to `.env` and set the required variables:
-    *   `AGENT_NAME`: Unique ID for the agent.
-    *   `DATABASE_URL`: Postgres connection string.
-    *   `OPENROUTER_API_KEY` / `GOOGLE_API_KEY`: LLM API keys.
+### Start Everything (2 terminals)
 
-2.  **Install Dependencies:**
-    ```bash
-    uv sync
-    ```
+**Terminal 1 — Go WhatsApp Bridge:**
+```bash
+cd whatsapp-mcp/whatsapp-bridge
+go build -o whatsapp-bridge main.go && ./whatsapp-bridge
+```
+Wait for: `✓ Connected to WhatsApp!` and `REST server is running.`
 
-### Execution Commands
+On first run, scan the QR code displayed in terminal with your WhatsApp app.
 
-| Task | Command | Description |
-| :--- | :--- | :--- |
-| **Run Locally** | `uv run python -m agent.server` | Starts the agent server on localhost:8080. |
-| **Run (Script)**| `uv run server` | Alternative command using the project script entry point. |
-| **Docker Run** | `docker compose up --build -d` | Builds and starts the agent in a Docker container. |
-| **Test** | `uv run pytest` | Runs the test suite. |
-| **Lint** | `uv run ruff check` | Runs linter checks. |
-| **Format** | `uv run ruff format` | Formats code using Ruff. |
-| **Type Check** | `uv run mypy .` | Runs static type checking. |
+**Terminal 2 — ADK Agent Server:**
+```bash
+cd /Users/lordpatil/Projects/whatsapp-bot
+uv run python -m whatsapp_bot.server
+```
+Wait for: `Uvicorn running on http://0.0.0.0:8888`
+
+### Testing
+- Have someone send you a WhatsApp DM — the bot auto-replies within ~10 seconds
+- Manual webhook test:
+  ```bash
+  curl -s -X POST http://localhost:8888/webhook/whatsapp \
+    -H "Content-Type: application/json" \
+    -d '{"chat_jid": "918408878186@s.whatsapp.net", "sender": "918408878186", "sender_name": "Suraj Gavali", "content": "Hey!", "timestamp": "2026-02-14T17:00:00+05:30"}'
+  ```
+
+### Docker
+```bash
+docker compose up --build -d
+```
+
+---
+
+## Auto-Reply System Details (`auto_reply.py`)
+
+### Message Flow
+1. Go bridge receives incoming DM → POSTs to `/webhook/whatsapp`
+2. Guard clauses filter out: groups, ignored JIDs, empty messages
+3. Message is added to `ContactState.pending_messages`
+4. Debounce timer starts (5s). If another message arrives, timer restarts
+5. After quiet period, all pending messages are batched into one agent prompt
+6. `InMemoryRunner` invokes the agent with `run_async()`
+7. Agent calls `send_message` MCP tool → MCP server → Go bridge REST API → WhatsApp
+8. Cooldown timer set to prevent rapid-fire replies
+
+### Key Design Decisions
+- **InMemoryRunner** (not the main server's Runner): The auto-reply system uses its own `InMemoryRunner` to avoid session conflicts with the ADK web UI
+- **Per-contact sessions**: Each sender gets a unique session (`auto_reply_{phone}`) so the agent has conversation context
+- **Debouncing**: Rapid messages (e.g., 3 messages in 2 seconds) are batched into a single agent invocation
+- **Cooldown**: After replying, a 0.5s cooldown prevents infinite loops (bot's own sent message triggers a webhook → reply → webhook → ...)
+- **The Go bridge already filters `is_from_me`**, so the bot's own outgoing messages don't trigger webhooks
+
+### Guard Clauses (messages that are NOT replied to)
+- Group messages (`chat_jid` ending in `@g.us`)
+- Messages from self (`msg.Info.IsFromMe` in Go bridge)
+- Empty or whitespace-only messages
+- JIDs in the `AUTO_REPLY_IGNORE_JIDS` list
+- `AUTO_REPLY_ENABLED=false`
+
+---
+
+## Agent Configuration (`agent.py`)
+
+### MCP Toolset
+The agent connects to the WhatsApp MCP server via `StdioConnectionParams`:
+```python
+McpToolset(
+    connection_params=StdioConnectionParams(
+        server_params=StdioServerParameters(
+            command="uv",
+            args=["--directory", WHATSAPP_MCP_DIR, "run", "main.py"],
+        ),
+        timeout=30,
+    ),
+    tool_filter=[
+        "search_contacts", "list_messages", "list_chats",
+        "get_chat", "get_direct_chat_by_contact",
+        "get_last_interaction", "send_message",
+    ],
+)
+```
+
+### Model
+- Configured via `ROOT_AGENT_MODEL` env var
+- Models with `/` in the name (e.g., `openrouter/...`) use `LiteLlm` wrapper
+- Current model: `openrouter/nvidia/nemotron-3-nano-30b-a3b:free`
+
+### Plugins
+- `GlobalInstructionPlugin`: Injects current date + "You are Chirag's assistant" into system prompt
+- `LoggingPlugin`: Rich emoji-formatted event logging
+
+### Callbacks
+- `LoggingCallbacks`: Logs before/after agent, model, and tool calls
+- `add_session_to_memory`: Saves completed sessions to memory service
+
+---
 
 ## Development Conventions
 
-### Code Structure
-*   **`src/agent/`**: Contains the core agent logic.
-    *   `agent.py`: Defines the `root_agent` and ADK application configuration.
-    *   `server.py`: FastAPI server entry point with OTel instrumentation.
-    *   `prompt.py`: Manages agent prompts and instructions.
-    *   `tools.py`: Helper tools for the agent.
-
-*   **`tests/`**: Unit and integration tests.
-
 ### Code Quality
-Before creating a Pull Request, you **must** ensure all local checks pass. The CI pipeline will run these same checks:
+```bash
+uv run ruff format     # Format code
+uv run ruff check      # Lint
+uv run mypy .          # Type check
+uv run pytest --cov=src  # Tests
+```
 
-1.  **Format Code:** `uv run ruff format`
-2.  **Lint Code:** `uv run ruff check`
-3.  **Type Check:** `uv run mypy .`
-4.  **Run Tests:** `uv run pytest --cov=src`
+### Port Assignments
+| Port | Service |
+|------|---------|
+| `8080` | Go WhatsApp Bridge REST API |
+| `8888` | Python ADK Agent Server (FastAPI) |
 
-Ensure all steps pass locally to avoid CI failures.
+**IMPORTANT:** Never change the Go bridge port from 8080 — the MCP server hardcodes `http://localhost:8080/api` in `whatsapp.py`.
 
-### Testing Standards for AI Assistants
-When asked to write or modify tests, you **MUST** adhere to the following strict guidelines derived from the ADK philosophy:
+### Common Issues
 
-1.  **Real Code Over Mocks**:
-    *   **Do not mock** internal logic (e.g., `LlmAgent`, `Prompt`, `Tool`). Use the real classes.
-    *   **Only mock** external boundaries (e.g., `LiteLLM`, `asyncpg`, `Network APIs`).
-    *   **Why?** This ensures we test the integration of components, not just isolated units.
+1. **Port 8888 already in use**: Kill the old process: `lsof -ti :8888 | xargs kill -9`
+2. **Port 8080 already in use**: Old Go bridge still running: `lsof -ti :8080 | xargs kill -9`
+3. **Go bridge exits immediately**: The `client.IsConnected()` check can fail if connection is slow. There's a retry loop (10 attempts × 1s). If it still fails, check your WhatsApp session.
+4. **QR code needed**: Delete `store/` directory in `whatsapp-bridge/` to force re-authentication
+5. **MCP server timeout**: If agent can't connect to MCP, ensure Go bridge is running first (MCP server needs the REST API at `:8080`)
+6. **Session mismatch error**: The `App` name in `agent.py` MUST be `whatsapp_bot` (matches the module directory name)
+7. **"Client outdated (405)" error**: The `whatsmeow` Go dependency needs updating. Run `go get -u go.mau.fi/whatsmeow@latest` in `whatsapp-bridge/`
 
-2.  **Pytest Best Practices**:
-    *   Use **fixtures** (`conftest.py`) for setup/teardown.
-    *   Use **`@pytest.mark.parametrize`** for testing multiple inputs/outputs.
-    *   Use **`tmp_path` fixture** for any file system operations.
-    *   **Strict Mocking**: Always use `create_autospec(spec_set=True)` to ensure mocks match the actual API.
+### Git Workflow
+- Runtime data is gitignored: `whatsapp-mcp/whatsapp-bridge/store/`, `whatsapp-mcp/whatsapp-bridge/whatsapp-bridge` (binary), `whatsapp-mcp/whatsapp-mcp-server/.venv/`
+- GitHub account: `QueryPlanner` (email: `chiragnpatil@gmail.com`)
 
-3.  **Test Coverage**:
-    *   Every new feature **must** have a corresponding test.
-    *   Tests must cover both the "Happy Path" (success) and "Edge Cases" (failure/errors).
-
-### Deployment
-*   **Containerization:** The `Dockerfile` provides a multi-stage build optimized for production.
-*   **CI/CD:** GitHub Actions workflows (`.github/workflows/`) handle testing, linting, and publishing Docker images to GHCR.
+### Testing Contacts
+- Suraj Gavali: `{"phone": "918408878186", "jid": "918408878186@s.whatsapp.net"}`
+- Chetan Jadhav: `{"phone": "919067732279", "jid": "919067732279@s.whatsapp.net"}`

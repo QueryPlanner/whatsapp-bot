@@ -9,6 +9,7 @@ Features:
   are batched into one agent invocation.
 - Per-contact sessions: each sender gets their own ADK session so the
   agent retains conversation context.
+- Persistent storage: uses DatabaseSessionService to keep history across restarts.
 - Ignore list: configurable JIDs to never auto-reply to.
 - Rate limiting: max one reply per contact per cooldown window.
 """
@@ -24,7 +25,9 @@ from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Request
 from fastapi.responses import JSONResponse
-from google.adk.runners import InMemoryRunner
+from google.adk.runners import Runner
+from google.adk.sessions.database_session_service import DatabaseSessionService
+from google.adk.errors.already_exists_error import AlreadyExistsError
 from google.genai import types
 
 logger = logging.getLogger(__name__)
@@ -39,7 +42,7 @@ router = APIRouter()
 DEBOUNCE_SECONDS = float(os.getenv("AUTO_REPLY_DEBOUNCE_SECONDS", "5"))
 
 # Minimum seconds between replies to the same contact.
-COOLDOWN_SECONDS = float(os.getenv("AUTO_REPLY_COOLDOWN_SECONDS", "15"))
+COOLDOWN_SECONDS = float(os.getenv("AUTO_REPLY_COOLDOWN_SECONDS", "0.5"))
 
 # Comma-separated JIDs to never auto-reply to.
 _raw_ignore = os.getenv("AUTO_REPLY_IGNORE_JIDS", "")
@@ -70,17 +73,37 @@ class ContactState:
 
 # phone_number -> ContactState
 _contacts: dict[str, ContactState] = {}
-_runner: InMemoryRunner | None = None
+_runner: Runner | None = None
 
 
-def _get_runner() -> InMemoryRunner:
-    """Lazy-init the InMemoryRunner using the root_agent from agent.py."""
+def _get_runner() -> Runner:
+    """Lazy-init the Runner with persistent session storage."""
     global _runner  # noqa: PLW0603
     if _runner is None:
         from .agent import app as adk_app
 
-        _runner = InMemoryRunner(app=adk_app)
-        logger.info("Auto-reply InMemoryRunner initialized")
+        # Use the same database URL logic as server.py
+        # Default to a local SQLite file if not set
+        db_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///store/sessions.db")
+        
+        # Handle postgres fix like in server.py
+        if db_url.startswith("postgresql://"):
+            db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            
+        # Fix for asyncpg which doesn't support sslmode/channel_binding in query
+        if db_url:
+            db_url = db_url.replace("sslmode=require", "ssl=require").replace(
+                "&channel_binding=require", ""
+            )
+
+        logger.info("Initializing Runner with storage: %s", db_url)
+        
+        # Create persistent session service
+        session_service = DatabaseSessionService(db_url=db_url)
+        
+        # Initialize Runner with the persistent session service
+        _runner = Runner(app=adk_app, session_service=session_service)
+        
     return _runner
 
 
@@ -119,6 +142,7 @@ async def whatsapp_webhook(
     sender_name: str = body.get("sender_name", sender)
     content: str = body.get("content", "")
     timestamp: str = body.get("timestamp", "")
+    is_from_me: bool = body.get("is_from_me", False)
 
     # --- Guard clauses ---
     # Must be a personal chat (not group)
@@ -126,8 +150,18 @@ async def whatsapp_webhook(
         logger.debug("Skipping non-DM: %s", chat_jid)
         return JSONResponse({"status": "skipped", "reason": "not_dm"})
 
-    # Ignore list
-    if chat_jid in IGNORE_JIDS or sender in IGNORE_JIDS:
+    # Self-sent messages logic (Note to Self / Manual invocation)
+    if is_from_me:
+        # Only reply if explicitly triggered with "@agent"
+        if not content.lower().strip().startswith("@agent"):
+            return JSONResponse({"status": "skipped", "reason": "self_ignored"})
+        
+        # Optional: verify it's a self-chat (sender == chat_jid roughly)
+        # But letting it work in any chat where I type "@agent" is also a useful feature
+        logger.info("Universal agent invocation by user: %s", content[:50])
+
+    # Ignore list check (skip if the contact is ignored, UNLESS I explicitly invoked it)
+    if not is_from_me and (chat_jid in IGNORE_JIDS or sender in IGNORE_JIDS):
         logger.debug("Skipping ignored JID: %s", chat_jid)
         return JSONResponse({"status": "skipped", "reason": "ignored"})
 
@@ -183,9 +217,14 @@ async def _debounced_reply(sender: str, delay: float) -> None:
     if now - state.last_reply_at < COOLDOWN_SECONDS:
         remaining = COOLDOWN_SECONDS - (now - state.last_reply_at)
         logger.info(
-            "Cooldown active for %s, skipping (%.0fs remaining)", sender, remaining
+            "Cooldown active for %s, re-scheduling (%.0fs remaining)",
+            sender,
+            remaining,
         )
-        state.pending_messages.clear()
+        # Don't drop messages — re-schedule after cooldown expires
+        state.debounce_task = asyncio.create_task(
+            _debounced_reply(sender, remaining + 0.5)
+        )
         return
 
     # Drain pending messages
@@ -236,17 +275,41 @@ async def _debounced_reply(sender: str, delay: float) -> None:
 async def _invoke_agent(sender: str, chat_jid: str, user_prompt: str) -> None:
     """Run the ADK agent with the given prompt and let it reply via tools."""
     runner = _get_runner()
-    state = _get_contact_state(sender)
+    
+    # Use a consistent session ID for this sender to maintain history
+    session_id = f"auto_reply_{sender}"
 
-    # Create or reuse a session per contact
-    if state.session_id is None:
-        session = await runner.session_service.create_session(
+    # Ensure we initialize the session if needed
+    try:
+        # Check if session exists by trying to get it
+        session = await runner.session_service.get_session(
             app_name=APP_NAME,
             user_id=USER_ID,
-            session_id=f"auto_reply_{sender}",
+            session_id=session_id,
         )
-        state.session_id = session.id
-        logger.info("Created session %s for %s", state.session_id, sender)
+        
+        if session:
+            logger.info("Using existing session %s for %s", session_id, sender)
+        else:
+            # Create new session if it doesn't exist
+            # Note: create_session is what actually persists the initial state record
+            session = await runner.session_service.create_session(
+                app_name=APP_NAME,
+                user_id=USER_ID,
+                session_id=session_id,
+            )
+            logger.info("Created new persistent session %s for %s", session_id, sender)
+        
+        # We don't need to manually store session_id in state anymore since 
+        # we deterministically derive it from the sender.
+        
+    except AlreadyExistsError:
+        # Race/edge case: just proceed, usage of the ID in run_async will work
+        logger.info("Session %s already exists (caught race), proceeding", session_id)
+    except Exception as e:
+        logger.error("Error managing session for %s: %s", sender, e)
+        # We might fail here if db is down, but let run_async try or bubble up
+        raise
 
     new_message = types.Content(
         role="user",
@@ -254,9 +317,11 @@ async def _invoke_agent(sender: str, chat_jid: str, user_prompt: str) -> None:
     )
 
     final_text: list[str] = []
+    
+    # Execute the agent turnover with the persistent session ID
     async for event in runner.run_async(
         user_id=USER_ID,
-        session_id=state.session_id,
+        session_id=session_id,
         new_message=new_message,
     ):
         # Log all events for debugging
