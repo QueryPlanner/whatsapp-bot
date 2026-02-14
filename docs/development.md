@@ -8,9 +8,9 @@
 
 ### Repo layout
 
-- `src/agent/server.py`: Main platform entrypoint (FastAPI + ADK + Postgres)
-- `src/agent/agent.py`: Agent definition (exports `root_agent`)
-- `src/agent/utils/`: Shared helper modules (config + observability)
+- `src/whatsapp_bot/server.py`: Main platform entrypoint (FastAPI + ADK + Postgres)
+- `src/whatsapp_bot/whatsapp_bot.py`: Agent definition (exports `root_whatsapp_bot`)
+- `src/whatsapp_bot/utils/`: Shared helper modules (config + observability)
 - `tests/`: Unit and integration tests
 - `.env`: Configuration file (API keys, DB URL)
 
@@ -18,7 +18,7 @@
 
 Create `.env` in the project root:
 
-- `AGENT_NAME`: Unique identifier for the agent service (required)
+- `AGENT_NAME`: Unique identifier for the whatsapp_bot service (required)
 - `GOOGLE_API_KEY`: Google AI Studio key (optional if using OpenRouter)
 - `OPENROUTER_API_KEY`: OpenRouter API key (required for non-Google models)
 - `DATABASE_URL`: Postgres URL for sessions (required for persistence)
@@ -45,7 +45,7 @@ uv sync
 
 **Local Python:**
 ```bash
-uv run python -m agent.server
+uv run python -m whatsapp_bot.server
 ```
 
 **Docker Compose (Recommended for full stack):**

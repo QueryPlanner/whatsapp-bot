@@ -9,7 +9,7 @@ To prepare a fresh Ubuntu/Debian server for production, run the included `setup.
 2.  **Dependencies**: Installs Docker, Docker Compose, Git, UFW, and Fail2Ban.
 3.  **Security**: Configures a basic firewall (UFW) allowing SSH (22), HTTP (80/443), and the Agent port (8080).
 4.  **Log Rotation**: Prevents Docker logs from filling up the disk.
-5.  **Dedicated User**: Creates an `agent-runner` user for secure operation.
+5.  **Dedicated User**: Creates an `whatsapp_bot-runner` user for secure operation.
 
 **Run on your server (as root):**
 
@@ -17,7 +17,7 @@ To prepare a fresh Ubuntu/Debian server for production, run the included `setup.
 > Piping scripts directly from the internet to `bash` can be dangerous. Please review the script's contents before executing it to understand the actions it will perform on your server.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<your-username>/google-adk-on-bare-metal/main/setup.sh | bash
+curl -fsSL https://raw.githubusercontent.com/<your-username>/whatsapp-bot/main/setup.sh | bash
 # OR if you have cloned the repo:
 sudo ./setup.sh
 ```
@@ -28,7 +28,7 @@ sudo ./setup.sh
 
 1.  **Managed Postgres Database**: You need a connection string (e.g., from Neon, AWS RDS, Supabase).
 2.  **OpenRouter or Google API Key**.
-3.  **AGENT_NAME**: A unique identifier for your agent service.
+3.  **AGENT_NAME**: A unique identifier for your whatsapp_bot service.
 4.  **Server**: A Linux server (Ubuntu/Debian recommended).
 
 ---
@@ -51,7 +51,7 @@ Instead of building locally, you can pull the pre-built image from GHCR.
     ```
 2.  **Pull the latest image**:
     ```bash
-    docker pull ghcr.io/<your-org-or-username>/google-adk-on-bare-metal:main
+    docker pull ghcr.io/<your-org-or-username>/whatsapp-bot:main
     ```
 
 ### Automatic Deployment
@@ -60,8 +60,8 @@ To automate deployment, update your `compose.yaml` to use the GHCR image:
 
 ```yaml
 services:
-  agent:
-    image: ghcr.io/<your-org-or-username>/google-adk-on-bare-metal:main
+  whatsapp_bot:
+    image: ghcr.io/<your-org-or-username>/whatsapp-bot:main
     # ... rest of config
 ```
 
@@ -79,7 +79,7 @@ Best if you don't want to manage Python versions on the host.
 1.  **Clone & Config**
     ```bash
     git clone <your-repo-url>
-    cd google-adk-on-bare-metal
+    cd whatsapp-bot
     cp .env.example .env
     # Edit .env with your DATABASE_URL and API Keys
     ```
@@ -117,7 +117,7 @@ source $HOME/.cargo/env
 ### 2. Clone & Setup
 ```bash
 git clone <your-repo-url>
-cd google-adk-on-bare-metal
+cd whatsapp-bot
 
 # Install Python dependencies
 uv sync
@@ -129,19 +129,19 @@ cp .env.example .env
 
 ### 3. Setup Systemd (Keep it running)
 
-1.  Edit `systemd/agent.service` and check the paths (User, WorkingDirectory).
+1.  Edit `systemd/whatsapp_bot.service` and check the paths (User, WorkingDirectory).
 2.  Install the service:
     ```bash
-    sudo cp systemd/agent.service /etc/systemd/system/agent.service
+    sudo cp systemd/whatsapp_bot.service /etc/systemd/system/whatsapp_bot.service
     sudo systemctl daemon-reload
-    sudo systemctl enable agent
-    sudo systemctl start agent
+    sudo systemctl enable whatsapp_bot
+    sudo systemctl start whatsapp_bot
     ```
 
 ### 4. Logs & Status
 ```bash
-sudo systemctl status agent
-sudo journalctl -u agent -f
+sudo systemctl status whatsapp_bot
+sudo journalctl -u whatsapp_bot -f
 ```
 
 ## Troubleshooting

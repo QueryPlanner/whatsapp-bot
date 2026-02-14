@@ -5,9 +5,9 @@ from typing import cast
 
 import pytest
 from conftest import MockMemoryCallbackContext
-from google.adk.agents.callback_context import CallbackContext
+from google.adk.whatsapp_bots.callback_context import CallbackContext
 
-from agent.callbacks import add_session_to_memory
+from whatsapp_bot.callbacks import add_session_to_memory
 
 
 def as_callback_context(context: MockMemoryCallbackContext) -> CallbackContext:

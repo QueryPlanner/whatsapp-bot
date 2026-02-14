@@ -12,17 +12,17 @@ def mock_dependencies() -> Generator[MagicMock]:
     """Mock external dependencies to prevent side effects during import."""
     with (
         patch("google.adk.cli.fast_api.get_fast_api_app") as mock_get_app,
-        patch("agent.utils.initialize_environment") as mock_init_env,
-        patch("agent.utils.configure_otel_resource"),
+        patch("whatsapp_bot.utils.initialize_environment") as mock_init_env,
+        patch("whatsapp_bot.utils.configure_otel_resource"),
         patch("openinference.instrumentation.google_adk.GoogleADKInstrumentor"),
-        patch("agent.utils.setup_logging"),
+        patch("whatsapp_bot.utils.setup_logging"),
     ):
         # Setup basic env mock
         mock_env = MagicMock()
         mock_env.session_uri = "postgresql://user:pass@localhost/db"
         mock_env.allow_origins_list = ["*"]
         mock_env.serve_web_interface = True
-        mock_env.reload_agents = False
+        mock_env.reload_whatsapp_bots = False
 
         # Helper to support .host and .port access if needed
         mock_env.host = "127.0.0.1"
@@ -42,11 +42,11 @@ def mock_dependencies() -> Generator[MagicMock]:
 
 def test_server_session_db_kwargs_configuration(mock_dependencies: MagicMock) -> None:
     """Verify session_db_kwargs is configured and passed to get_fast_api_app."""
-    # Ensure agent.server is reloaded if it was already imported
-    if "agent.server" in sys.modules:
-        del sys.modules["agent.server"]
+    # Ensure whatsapp_bot.server is reloaded if it was already imported
+    if "whatsapp_bot.server" in sys.modules:
+        del sys.modules["whatsapp_bot.server"]
 
-    import agent.server  # noqa: F401
+    import whatsapp_bot.server  # noqa: F401
 
     # expected kwargs
     expected_db_kwargs = {

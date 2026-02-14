@@ -2,7 +2,7 @@
 
 ## Organization
 
-This directory separates **base infrastructure documentation** from **your custom agent documentation**.
+This directory separates **base infrastructure documentation** from **your custom whatsapp_bot documentation**.
 
 ### `base-infra/` - Base Infrastructure
 
@@ -17,7 +17,7 @@ See [base-infra/](./base-infra/) for complete list.
 
 ### Root - Your Custom Documentation
 
-Add your agent-specific documentation here:
+Add your whatsapp_bot-specific documentation here:
 - Custom tools and capabilities
 - Domain-specific logic and patterns
 - Agent instructions and prompts
@@ -31,7 +31,7 @@ docs/
 ├── custom-tools.md          # Your custom tool documentation
 ├── domain-guide.md          # Your domain-specific patterns
 ├── api-integration.md       # Your API integrations
-└── agent-instructions.md    # Your agent instruction docs
+└── whatsapp_bot-instructions.md    # Your whatsapp_bot instruction docs
 ```
 
 ## Quick Links

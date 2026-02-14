@@ -10,14 +10,14 @@ Google ADK is useful even without Google Cloud:
 
 ### Key choices
 
-- **Entry point**: `python -m agent.server`
+- **Entry point**: `python -m whatsapp_bot.server`
   - Wraps `google.adk.cli.fast_api.get_fast_api_app(...)`
   - Forces a Postgres-backed session store via `DATABASE_URL`
   - Configures OpenTelemetry for vendor-neutral tracing (Langfuse auto-config included)
 - **Agents directory**: `src/`
-  - ADK Dev UI lists *directories* under `agents_dir`.
-- **Main Agent**: `src/agent/agent.py`
-  - Contains `root_agent` to keep ADK discovery simple.
+  - ADK Dev UI lists *directories* under `whatsapp_bots_dir`.
+- **Main Agent**: `src/whatsapp_bot/whatsapp_bot.py`
+  - Contains `root_whatsapp_bot` to keep ADK discovery simple.
 - **DB URL normalization**: Handled in `server.py`
   - Converts standard Postgres URLs (e.g. `postgresql://`) to asyncpg-compatible ones (`postgresql+asyncpg://`)
 
@@ -29,4 +29,4 @@ ADK session persistence stores:
 - events (conversation history / tool calls)
 - app/user state snapshots
 
-This is what makes the Dev UI “remember” conversations across restarts and allows for persistent agent memory.
+This is what makes the Dev UI “remember” conversations across restarts and allows for persistent whatsapp_bot memory.

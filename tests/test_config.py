@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic import ValidationError
 
-from agent.utils.config import (
+from whatsapp_bot.utils.config import (
     ServerEnv,
     initialize_environment,
 )
@@ -19,7 +19,7 @@ class TestServerEnv:
         """Test creating ServerEnv with valid required fields."""
         env = ServerEnv.model_validate(valid_server_env)
 
-        assert env.agent_name == "test-agent"
+        assert env.whatsapp_bot_name == "test-whatsapp_bot"
 
     def test_server_env_missing_required_field_raises_validation_error(self) -> None:
         """Test that missing required fields raise ValidationError."""
@@ -42,8 +42,8 @@ class TestServerEnv:
         # Check defaults
         assert env.log_level == "INFO"
         assert env.serve_web_interface is False
-        assert env.reload_agents is False
-        assert env.agent_engine is None
+        assert env.reload_whatsapp_bots is False
+        assert env.whatsapp_bot_engine is None
         assert env.database_url is None
         assert env.openrouter_api_key is None
         assert env.allow_origins == '["http://127.0.0.1", "http://127.0.0.1:8080"]'
@@ -56,7 +56,7 @@ class TestServerEnv:
         """Test setting optional fields with actual values."""
         data = {
             **valid_server_env,
-            "AGENT_NAME": "custom-agent",
+            "AGENT_NAME": "custom-whatsapp_bot",
             "LOG_LEVEL": "DEBUG",
             "SERVE_WEB_INTERFACE": "true",
             "RELOAD_AGENTS": "true",
@@ -70,38 +70,38 @@ class TestServerEnv:
 
         env = ServerEnv.model_validate(data)
 
-        assert env.agent_name == "custom-agent"
+        assert env.whatsapp_bot_name == "custom-whatsapp_bot"
         assert env.log_level == "DEBUG"
         assert env.serve_web_interface is True
-        assert env.reload_agents is True
-        assert env.agent_engine == "test-engine-id"
+        assert env.reload_whatsapp_bots is True
+        assert env.whatsapp_bot_engine == "test-engine-id"
         assert env.database_url == "postgresql://user:pass@localhost/db"
         assert env.openrouter_api_key == "sk-or-v1-test"
         assert env.allow_origins == '["http://localhost:3000"]'
         assert env.host == "0.0.0.0"  # noqa: S104
         assert env.port == 9000
 
-    def test_agent_engine_uri_property(self, valid_server_env: dict[str, str]) -> None:
-        """Test that agent_engine_uri property is computed correctly."""
-        # Without agent_engine
+    def test_whatsapp_bot_engine_uri_property(self, valid_server_env: dict[str, str]) -> None:
+        """Test that whatsapp_bot_engine_uri property is computed correctly."""
+        # Without whatsapp_bot_engine
         env = ServerEnv.model_validate(valid_server_env)
-        assert env.agent_engine_uri is None
+        assert env.whatsapp_bot_engine_uri is None
 
-        # With agent_engine
+        # With whatsapp_bot_engine
         data = {**valid_server_env, "AGENT_ENGINE": "test-engine-id"}
         env = ServerEnv.model_validate(data)
-        assert env.agent_engine_uri == "agentengine://test-engine-id"
+        assert env.whatsapp_bot_engine_uri == "whatsapp_botengine://test-engine-id"
 
     def test_session_uri_property(self, valid_server_env: dict[str, str]) -> None:
         """Test that session_uri property is computed correctly."""
-        # Case 1: Neither database_url nor agent_engine
+        # Case 1: Neither database_url nor whatsapp_bot_engine
         env = ServerEnv.model_validate(valid_server_env)
         assert env.session_uri is None
 
-        # Case 2: Only agent_engine
+        # Case 2: Only whatsapp_bot_engine
         data = {**valid_server_env, "AGENT_ENGINE": "test-engine-id"}
         env = ServerEnv.model_validate(data)
-        assert env.session_uri == "agentengine://test-engine-id"
+        assert env.session_uri == "whatsapp_botengine://test-engine-id"
 
         # Case 3: Only database_url (takes precedence)
         db_url = "postgresql://user:pass@localhost/db?sslmode=require&channel_binding=require"
@@ -113,7 +113,7 @@ class TestServerEnv:
         expected = "postgresql://user:pass@localhost/db?ssl=require"
         assert env.session_uri == expected
 
-        # Case 4: Both database_url and agent_engine (database_url takes precedence)
+        # Case 4: Both database_url and whatsapp_bot_engine (database_url takes precedence)
         data = {
             **valid_server_env,
             "DATABASE_URL": "postgresql://user:pass@localhost/db",
@@ -176,7 +176,7 @@ class TestServerEnv:
         output = captured.out
 
         # Check key information is printed
-        assert "test-agent" in output
+        assert "test-whatsapp_bot" in output
         assert "AGENT_NAME" in output
         assert "LOG_LEVEL" in output
 
@@ -207,7 +207,7 @@ class TestServerEnv:
         data = {**valid_server_env, "EXTRA_VAR": "extra-value", "PATH": "/usr/bin"}
 
         env = ServerEnv.model_validate(data)
-        assert env.agent_name == "test-agent"
+        assert env.whatsapp_bot_name == "test-whatsapp_bot"
         # Extra fields should not be included
         assert not hasattr(env, "EXTRA_VAR")
         assert not hasattr(env, "PATH")
@@ -229,7 +229,7 @@ class TestInitializeEnvironment:
         env = initialize_environment(ServerEnv, print_config=False)
 
         mock_load_dotenv.assert_called_once_with(override=True)
-        assert env.agent_name == "test-agent"
+        assert env.whatsapp_bot_name == "test-whatsapp_bot"
 
     def test_initialize_environment_validation_failure(
         self,
@@ -326,7 +326,7 @@ class TestEdgeCases:
         for truthy in ["1", "yes", "Yes", "on", "On", "t", "y", "Y"]:
             data = {**valid_server_env, "RELOAD_AGENTS": truthy}
             env = ServerEnv.model_validate(data)
-            assert env.reload_agents is True, f"Failed for: {truthy}"
+            assert env.reload_whatsapp_bots is True, f"Failed for: {truthy}"
 
         # Test falsy values
         for falsy in ["false", "False", "FALSE"]:
@@ -338,7 +338,7 @@ class TestEdgeCases:
         for falsy in ["0", "no", "No", "off", "Off", "f", "n", "N"]:
             data = {**valid_server_env, "RELOAD_AGENTS": falsy}
             env = ServerEnv.model_validate(data)
-            assert env.reload_agents is False, f"Failed for: {falsy}"
+            assert env.reload_whatsapp_bots is False, f"Failed for: {falsy}"
 
     def test_boolean_field_invalid_values_raise_errors(
         self, valid_server_env: dict[str, str]

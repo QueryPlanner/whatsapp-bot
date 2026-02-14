@@ -1,9 +1,9 @@
 # Google ADK on Bare Metal
 
-A **production-ready template** for building and deploying Google ADK agents on your own infrastructure (bare metal, VPS, or private cloud) without the complexity or lock-in of heavy cloud providers.
+A **production-ready template** for building and deploying Google ADK whatsapp_bots on your own infrastructure (bare metal, VPS, or private cloud) without the complexity or lock-in of heavy cloud providers.
 
 **Philosophy**
-We believe you should own your agents. This template is designed to strip away the "cloud magic" and give you a clean, performant, and observable foundation that runs anywhere—from a $5/mo VPS to a Raspberry Pi cluster.
+We believe you should own your whatsapp_bots. This template is designed to strip away the "cloud magic" and give you a clean, performant, and observable foundation that runs anywhere—from a $5/mo VPS to a Raspberry Pi cluster.
 
 ## Key Features
 
@@ -26,7 +26,7 @@ We believe you should own your agents. This template is designed to strip away t
 
 Copy `.env.example` to `.env`:
 
-- **`AGENT_NAME`**: Unique ID for your agent.
+- **`AGENT_NAME`**: Unique ID for your whatsapp_bot.
 - **`DATABASE_URL`**: Postgres connection string.
 - **`OPENROUTER_API_KEY`**: Recommended for accessing varied models.
 - **`GOOGLE_API_KEY`**: Optional. Required only if using Gemini models directly.
@@ -40,7 +40,7 @@ uv sync
 ### 3) Run Locally
 
 ```bash
-uv run python -m agent.server
+uv run python -m whatsapp_bot.server
 ```
 Visit `http://127.0.0.1:8080`.
 
@@ -54,7 +54,7 @@ Since we include CI/CD, every push to `main` builds a fresh image. On your serve
 
 ```bash
 # 1. Pull the latest image
-docker pull ghcr.io/queryplanner/google-adk-on-bare-metal:main
+docker pull ghcr.io/queryplanner/whatsapp-bot:main
 
 # 2. Start the service
 docker compose up -d
@@ -71,7 +71,7 @@ docker compose up --build -d
 
 ## Observability
 
-The template comes pre-wired with **OpenTelemetry**. By default, it's set up to export traces to **Langfuse** for beautiful, actionable insights into your agent's performance and costs.
+The template comes pre-wired with **OpenTelemetry**. By default, it's set up to export traces to **Langfuse** for beautiful, actionable insights into your whatsapp_bot's performance and costs.
 
 To change the backend, simply update the OTel exporter configuration in your `.env`. You are not locked into any specific observability vendor.
 

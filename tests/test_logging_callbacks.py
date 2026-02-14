@@ -1,4 +1,4 @@
-"""Unit tests for the LoggingCallbacks class in the agent.logging_callbacks module."""
+"""Unit tests for the LoggingCallbacks class in the whatsapp_bot.logging_callbacks module."""
 
 import logging
 from typing import Any
@@ -17,7 +17,7 @@ from conftest import (
     MockToolContext,
 )
 
-from agent.callbacks import LoggingCallbacks
+from whatsapp_bot.callbacks import LoggingCallbacks
 
 # Note: Custom mock classes (conftest.py) use duck typing to match ADK interfaces.
 
@@ -39,7 +39,7 @@ class TestLoggerInjection:
         callbacks = LoggingCallbacks()
 
         assert callbacks.logger is not None
-        assert callbacks.logger.name == "agent.callbacks"
+        assert callbacks.logger.name == "whatsapp_bot.callbacks"
 
     def test_logging_callbacks_custom_logger(
         self, custom_logger: logging.Logger
@@ -63,8 +63,8 @@ class TestLoggerInjection:
         callbacks = LoggingCallbacks(logger=custom_logger)
 
         # Test various callbacks
-        callbacks.before_agent(mock_logging_callback_context)  # type: ignore
-        callbacks.after_agent(mock_logging_callback_context)  # type: ignore
+        callbacks.before_whatsapp_bot(mock_logging_callback_context)  # type: ignore
+        callbacks.after_whatsapp_bot(mock_logging_callback_context)  # type: ignore
 
         # Verify logs were sent to custom logger
         custom_logger_records = [
@@ -72,87 +72,87 @@ class TestLoggerInjection:
         ]
 
         assert len(custom_logger_records) > 0
-        assert any("Starting agent" in r.message for r in custom_logger_records)
-        assert any("Leaving agent" in r.message for r in custom_logger_records)
+        assert any("Starting whatsapp_bot" in r.message for r in custom_logger_records)
+        assert any("Leaving whatsapp_bot" in r.message for r in custom_logger_records)
 
 
 class TestAgentCallbacks:
-    """Tests for agent lifecycle callbacks (before_agent and after_agent)."""
+    """Tests for whatsapp_bot lifecycle callbacks (before_whatsapp_bot and after_whatsapp_bot)."""
 
-    def test_before_agent_with_full_context(
+    def test_before_whatsapp_bot_with_full_context(
         self,
         mock_logging_callback_context: MockLoggingCallbackContext,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """Verify before_agent logs agent name, ID, state, and user content properly."""
+        """Verify before_whatsapp_bot logs whatsapp_bot name, ID, state, and user content properly."""
         caplog.set_level(logging.DEBUG)
         callbacks = LoggingCallbacks()
 
-        result = callbacks.before_agent(mock_logging_callback_context)  # type: ignore
+        result = callbacks.before_whatsapp_bot(mock_logging_callback_context)  # type: ignore
 
         # Verify return value
         assert result is None
 
         # Verify INFO level logging
         assert (
-            "*** Starting agent 'my_agent' with invocation_id 'inv-789' ***"
+            "*** Starting whatsapp_bot 'my_whatsapp_bot' with invocation_id 'inv-789' ***"
             in caplog.text
         )
 
         # Verify DEBUG level logging
         assert "State keys:" in caplog.text
-        assert "User Content: {'text': 'Hello, agent!'}" in caplog.text
+        assert "User Content: {'text': 'Hello, whatsapp_bot!'}" in caplog.text
 
-    def test_before_agent_without_user_content(
+    def test_before_whatsapp_bot_without_user_content(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Verify before_agent skips user content logging when not provided."""
+        """Verify before_whatsapp_bot skips user content logging when not provided."""
         caplog.set_level(logging.DEBUG)
         callbacks = LoggingCallbacks()
         context = MockLoggingCallbackContext(user_content=None)
 
-        result = callbacks.before_agent(context)  # type: ignore
+        result = callbacks.before_whatsapp_bot(context)  # type: ignore
 
         assert result is None
-        assert "*** Starting agent 'test_agent'" in caplog.text
+        assert "*** Starting whatsapp_bot 'test_whatsapp_bot'" in caplog.text
         assert "User Content:" not in caplog.text
 
-    def test_after_agent_with_full_context(
+    def test_after_whatsapp_bot_with_full_context(
         self,
         mock_logging_callback_context: MockLoggingCallbackContext,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """Verify after_agent logs agent exit with ID, state, and user content."""
+        """Verify after_whatsapp_bot logs whatsapp_bot exit with ID, state, and user content."""
         caplog.set_level(logging.DEBUG)
         callbacks = LoggingCallbacks()
 
-        result = callbacks.after_agent(mock_logging_callback_context)  # type: ignore
+        result = callbacks.after_whatsapp_bot(mock_logging_callback_context)  # type: ignore
 
         # Verify return value
         assert result is None
 
         # Verify INFO level logging
         assert (
-            "*** Leaving agent 'my_agent' with invocation_id 'inv-789' ***"
+            "*** Leaving whatsapp_bot 'my_whatsapp_bot' with invocation_id 'inv-789' ***"
             in caplog.text
         )
 
         # Verify DEBUG level logging
         assert "State keys:" in caplog.text
-        assert "User Content: {'text': 'Hello, agent!'}" in caplog.text
+        assert "User Content: {'text': 'Hello, whatsapp_bot!'}" in caplog.text
 
-    def test_after_agent_without_user_content(
+    def test_after_whatsapp_bot_without_user_content(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Verify after_agent skips user content logging when not provided."""
+        """Verify after_whatsapp_bot skips user content logging when not provided."""
         caplog.set_level(logging.DEBUG)
         callbacks = LoggingCallbacks()
         context = MockLoggingCallbackContext(user_content=None)
 
-        result = callbacks.after_agent(context)  # type: ignore
+        result = callbacks.after_whatsapp_bot(context)  # type: ignore
 
         assert result is None
-        assert "*** Leaving agent 'test_agent'" in caplog.text
+        assert "*** Leaving whatsapp_bot 'test_whatsapp_bot'" in caplog.text
         assert "User Content:" not in caplog.text
 
 
@@ -179,7 +179,7 @@ class TestModelCallbacks:
         result = callbacks.before_model(mock_logging_callback_context, llm_request)  # type: ignore
 
         assert result is None
-        assert "*** Before LLM call for agent 'my_agent'" in caplog.text
+        assert "*** Before LLM call for whatsapp_bot 'my_whatsapp_bot'" in caplog.text
         assert "LLM request contains 3 messages:" in caplog.text
         assert "Content 1: {'role': 'system'" in caplog.text
         assert "Content 2: {'role': 'user'" in caplog.text
@@ -214,7 +214,7 @@ class TestModelCallbacks:
         result = callbacks.after_model(mock_logging_callback_context, mock_llm_response)  # type: ignore
 
         assert result is None
-        assert "*** After LLM call for agent 'my_agent'" in caplog.text
+        assert "*** After LLM call for whatsapp_bot 'my_whatsapp_bot'" in caplog.text
         assert (
             "LLM response: {'text': 'The answer is 42', 'confidence': 0.95}"
             in caplog.text
@@ -257,7 +257,7 @@ class TestToolCallbacks:
 
         assert result is None
         assert (
-            "*** Before invoking tool 'calculator' in agent 'tool_agent'" in caplog.text
+            "*** Before invoking tool 'calculator' in whatsapp_bot 'tool_whatsapp_bot'" in caplog.text
         )
         assert "args: {'operation': 'add', 'x': 5, 'y': 3}" in caplog.text
         assert (
@@ -334,8 +334,8 @@ class TestEdgeCases:
 
         context = MockLoggingCallbackContext(state=MockState({}))
 
-        # Test before_agent with empty state
-        result = callbacks.before_agent(context)  # type: ignore
+        # Test before_whatsapp_bot with empty state
+        result = callbacks.before_whatsapp_bot(context)  # type: ignore
         assert result is None
         assert "State keys: dict_keys([])" in caplog.text
 
@@ -367,7 +367,7 @@ class TestEdgeCases:
 
         context = MockLoggingCallbackContext(state=complex_state)
 
-        result = callbacks.before_agent(context)  # type: ignore
+        result = callbacks.before_whatsapp_bot(context)  # type: ignore
         assert result is None
         # Now we only log state keys, not the actual values
         assert "State keys: dict_keys(['user', 'session'])" in caplog.text
@@ -381,19 +381,19 @@ class TestEdgeCases:
         caplog.set_level(logging.INFO)
         caplog.clear()
 
-        callbacks.before_agent(context)  # type: ignore
+        callbacks.before_whatsapp_bot(context)  # type: ignore
         info_records = [r for r in caplog.records if r.levelname == "INFO"]
         debug_records = [r for r in caplog.records if r.levelname == "DEBUG"]
 
         assert len(info_records) == 1
-        assert "Starting agent" in info_records[0].message
+        assert "Starting whatsapp_bot" in info_records[0].message
         assert len(debug_records) == 0  # DEBUG not captured at INFO level
 
         # Test DEBUG level (should show details)
         caplog.set_level(logging.DEBUG)
         caplog.clear()
 
-        callbacks.before_agent(context)  # type: ignore
+        callbacks.before_whatsapp_bot(context)  # type: ignore
         info_records = [r for r in caplog.records if r.levelname == "INFO"]
         debug_records = [r for r in caplog.records if r.levelname == "DEBUG"]
 
@@ -412,7 +412,7 @@ class TestEdgeCases:
 
         context = MockLoggingCallbackContext(user_content=mock_content)
 
-        callbacks.before_agent(context)  # type: ignore
+        callbacks.before_whatsapp_bot(context)  # type: ignore
 
         # Verify model_dump was called with correct parameters
         mock_content.model_dump.assert_called_once_with(exclude_none=True, mode="json")
@@ -424,7 +424,7 @@ class TestEdgeCases:
         mock_llm_response: MockLlmResponse,
         mock_base_tool: MockBaseTool,
     ) -> None:
-        """Verify all callback methods return None to allow normal agent flow."""
+        """Verify all callback methods return None to allow normal whatsapp_bot flow."""
         callbacks = LoggingCallbacks()
 
         # Create test objects
@@ -434,8 +434,8 @@ class TestEdgeCases:
         tool_response = {"result": "success"}
 
         # Test all callbacks return None
-        assert callbacks.before_agent(callback_context) is None  # type: ignore
-        assert callbacks.after_agent(callback_context) is None  # type: ignore
+        assert callbacks.before_whatsapp_bot(callback_context) is None  # type: ignore
+        assert callbacks.after_whatsapp_bot(callback_context) is None  # type: ignore
         assert callbacks.before_model(callback_context, mock_llm_request) is None  # type: ignore
         assert callbacks.after_model(callback_context, mock_llm_response) is None  # type: ignore
         assert callbacks.before_tool(mock_base_tool, args, tool_context) is None  # type: ignore
@@ -457,8 +457,8 @@ class TestWalrusOperators:
         and evaluates the value, preventing regressions if refactored.
 
         Tests all 7 walrus operator usages in LoggingCallbacks:
-        1. before_agent (line 80): user_content assignment
-        2. after_agent (line 103): user_content assignment
+        1. before_whatsapp_bot (line 80): user_content assignment
+        2. after_whatsapp_bot (line 103): user_content assignment
         3. before_model (line 132): user_content assignment
         4. after_model (line 166): user_content assignment
         5. after_model (line 170): llm_content assignment
@@ -468,44 +468,44 @@ class TestWalrusOperators:
         caplog.set_level(logging.DEBUG)
         callbacks = LoggingCallbacks()
 
-        # Test 1: before_agent walrus operator with unique content
-        unique_content_before_agent = MockContent(
+        # Test 1: before_whatsapp_bot walrus operator with unique content
+        unique_content_before_whatsapp_bot = MockContent(
             {
-                "unique_walrus_marker": "test_walrus_12345_before_agent",
+                "unique_walrus_marker": "test_walrus_12345_before_whatsapp_bot",
                 "test_type": "walrus_operator_validation",
             }
         )
-        context_before_agent = MockLoggingCallbackContext(
-            agent_name="walrus_test_agent", user_content=unique_content_before_agent
+        context_before_whatsapp_bot = MockLoggingCallbackContext(
+            whatsapp_bot_name="walrus_test_whatsapp_bot", user_content=unique_content_before_whatsapp_bot
         )
 
         caplog.clear()
-        callbacks.before_agent(context_before_agent)  # type: ignore
+        callbacks.before_whatsapp_bot(context_before_whatsapp_bot)  # type: ignore
 
         # Verify the exact unique content was assigned and used
         assert "unique_walrus_marker" in caplog.text
-        assert "test_walrus_12345_before_agent" in caplog.text
+        assert "test_walrus_12345_before_whatsapp_bot" in caplog.text
         assert "test_type" in caplog.text
         assert "walrus_operator_validation" in caplog.text
 
-        # Test 2: after_agent walrus operator with unique content
-        unique_content_after_agent = MockContent(
+        # Test 2: after_whatsapp_bot walrus operator with unique content
+        unique_content_after_whatsapp_bot = MockContent(
             {
-                "unique_walrus_marker": "test_walrus_67890_after_agent",
-                "validation_id": "after_agent_walrus",
+                "unique_walrus_marker": "test_walrus_67890_after_whatsapp_bot",
+                "validation_id": "after_whatsapp_bot_walrus",
             }
         )
-        context_after_agent = MockLoggingCallbackContext(
-            agent_name="walrus_test_agent", user_content=unique_content_after_agent
+        context_after_whatsapp_bot = MockLoggingCallbackContext(
+            whatsapp_bot_name="walrus_test_whatsapp_bot", user_content=unique_content_after_whatsapp_bot
         )
 
         caplog.clear()
-        callbacks.after_agent(context_after_agent)  # type: ignore
+        callbacks.after_whatsapp_bot(context_after_whatsapp_bot)  # type: ignore
 
         assert "unique_walrus_marker" in caplog.text
-        assert "test_walrus_67890_after_agent" in caplog.text
+        assert "test_walrus_67890_after_whatsapp_bot" in caplog.text
         assert "validation_id" in caplog.text
-        assert "after_agent_walrus" in caplog.text
+        assert "after_whatsapp_bot_walrus" in caplog.text
 
         # Test 3: before_model walrus operator with unique content
         unique_content_before_model = MockContent(
@@ -515,7 +515,7 @@ class TestWalrusOperators:
             }
         )
         context_before_model = MockLoggingCallbackContext(
-            agent_name="walrus_test_agent", user_content=unique_content_before_model
+            whatsapp_bot_name="walrus_test_whatsapp_bot", user_content=unique_content_before_model
         )
         llm_request = MockLlmRequest()
 
@@ -535,7 +535,7 @@ class TestWalrusOperators:
             }
         )
         context_after_model = MockLoggingCallbackContext(
-            agent_name="walrus_test_agent", user_content=unique_content_after_model
+            whatsapp_bot_name="walrus_test_whatsapp_bot", user_content=unique_content_after_model
         )
 
         # Test 5: after_model walrus operator with llm_content
@@ -569,7 +569,7 @@ class TestWalrusOperators:
             }
         )
         tool_context_before = MockToolContext(
-            agent_name="walrus_tool_agent", user_content=unique_content_before_tool
+            whatsapp_bot_name="walrus_tool_whatsapp_bot", user_content=unique_content_before_tool
         )
         tool = MockBaseTool(name="walrus_test_tool")
         args = {"test": "walrus"}
@@ -590,7 +590,7 @@ class TestWalrusOperators:
             }
         )
         tool_context_after = MockToolContext(
-            agent_name="walrus_tool_agent", user_content=unique_content_after_tool
+            whatsapp_bot_name="walrus_tool_whatsapp_bot", user_content=unique_content_after_tool
         )
         tool_response = {"result": "walrus_test_success"}
 
@@ -618,22 +618,22 @@ class TestWalrusOperators:
 
         # Create contexts with None values for user_content
         context_none = MockLoggingCallbackContext(
-            agent_name="none_test_agent",
+            whatsapp_bot_name="none_test_whatsapp_bot",
             user_content=None,  # This should cause walrus operator to skip the block
         )
         tool_context_none = MockToolContext(
-            agent_name="none_tool_agent", user_content=None
+            whatsapp_bot_name="none_tool_whatsapp_bot", user_content=None
         )
         llm_response_none = MockLlmResponse(content=None)  # None llm_content
 
-        # Test before_agent with None user_content
+        # Test before_whatsapp_bot with None user_content
         caplog.clear()
-        callbacks.before_agent(context_none)  # type: ignore
+        callbacks.before_whatsapp_bot(context_none)  # type: ignore
         assert "User Content:" not in caplog.text
 
-        # Test after_agent with None user_content
+        # Test after_whatsapp_bot with None user_content
         caplog.clear()
-        callbacks.after_agent(context_none)  # type: ignore
+        callbacks.after_whatsapp_bot(context_none)  # type: ignore
         assert "User Content:" not in caplog.text
 
         # Test before_model with None user_content

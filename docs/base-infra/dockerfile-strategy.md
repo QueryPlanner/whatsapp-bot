@@ -1,6 +1,6 @@
 # Dockerfile Strategy Explained
 
-This document explains our multi-stage Docker build strategy and why we chose this approach for containerizing the agent.
+This document explains our multi-stage Docker build strategy and why we chose this approach for containerizing the whatsapp_bot.
 
 ## Table of Contents
 
@@ -275,7 +275,7 @@ ENV VIRTUAL_ENV=/app/.venv \
 | `PYTHONUNBUFFERED=1` | Don't buffer stdout/stderr (better logs in Docker) |
 | `HOST=0.0.0.0` | Explicitly bind all interfaces for containers (server.py defaults to 127.0.0.1) |
 | `PORT=8080` | Explicitly set default port (matches EXPOSE and server.py default) |
-| `AGENT_DIR=/app/src` | Override agent directory path (see AGENT_DIR section below) |
+| `AGENT_DIR=/app/src` | Override whatsapp_bot directory path (see AGENT_DIR section below) |
 
 ---
 
@@ -284,14 +284,14 @@ ENV VIRTUAL_ENV=/app/.venv \
 **The Problem:**
 
 When the package is installed in **non-editable mode** (Docker), the source code is copied to the virtual environment's site-packages:
-- Local (editable): `Path(__file__)` → `/path/to/project/src/your_agent_name/server.py`
-- Docker (non-editable): `Path(__file__)` → `/app/.venv/lib/python3.13/site-packages/your_agent_name/server.py`
+- Local (editable): `Path(__file__)` → `/path/to/project/src/your_whatsapp_bot_name/server.py`
+- Docker (non-editable): `Path(__file__)` → `/app/.venv/lib/python3.13/site-packages/your_whatsapp_bot_name/server.py`
 
 Using `Path(__file__).parent.parent` for `AGENT_DIR`:
-- Local: Resolves to `/path/to/project/src/` ✅ Correct (contains only your_agent_name/)
+- Local: Resolves to `/path/to/project/src/` ✅ Correct (contains only your_whatsapp_bot_name/)
 - Docker: Resolves to `/app/.venv/lib/python3.13/site-packages/` ❌ Wrong (contains all packages)
 
-This causes the ADK web UI to show all installed packages (.dist-info directories) instead of just our agent.
+This causes the ADK web UI to show all installed packages (.dist-info directories) instead of just our whatsapp_bot.
 
 **The Solution:**
 
@@ -308,7 +308,7 @@ ENV AGENT_DIR=/app/src
 **Why this works:**
 - Local dev: No `AGENT_DIR` env var → uses `Path(__file__).parent.parent` → `/path/to/project/src/` ✅
 - Docker: `AGENT_DIR=/app/src` env var set → overrides default → `/app/src/` ✅
-- Both point to directory containing only the agent source code
+- Both point to directory containing only the whatsapp_bot source code
 - Configurable via environment variable for other deployment scenarios
 
 ---
@@ -340,7 +340,7 @@ EXPOSE 8080
 ### Startup Command
 ```dockerfile
 # Run the FastAPI server via main() for unified startup logic (logging, etc.)
-CMD ["python", "-m", "agent.server"]
+CMD ["python", "-m", "whatsapp_bot.server"]
 ```
 **What:** Default command when container starts
 **Why:**
@@ -502,7 +502,7 @@ For local development workflow using Docker Compose (recommended), see [Docker C
 
 For direct Docker builds without Compose:
 ```bash
-DOCKER_BUILDKIT=1 docker build -t your-agent-name:latest .
+DOCKER_BUILDKIT=1 docker build -t your-whatsapp_bot-name:latest .
 ```
 
 ---

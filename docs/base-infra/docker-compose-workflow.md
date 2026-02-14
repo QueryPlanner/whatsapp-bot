@@ -103,7 +103,7 @@ develop:
 ### Data Directory
 - **Host:** `./data/`
 - **Container:** `/app/data` (read-only)
-- **Purpose:** Optional data files for agent
+- **Purpose:** Optional data files for whatsapp_bot
 
 ---
 
@@ -113,7 +113,7 @@ Docker Compose loads `.env` automatically. Key variables:
 
 ```bash
 # Identity
-AGENT_NAME=my-local-agent
+AGENT_NAME=my-local-whatsapp_bot
 
 # API Keys
 GOOGLE_API_KEY=your-key
@@ -162,14 +162,14 @@ If you need to build and run without docker-compose:
 
 ```bash
 # Build the image with BuildKit
-DOCKER_BUILDKIT=1 docker build -t your-agent-name:latest .
+DOCKER_BUILDKIT=1 docker build -t your-whatsapp_bot-name:latest .
 
 # Run directly
 docker run \
   -v ./data:/app/data:ro \
   -p 127.0.0.1:8080:8080 \
   --env-file .env \
-  your-agent-name:latest
+  your-whatsapp_bot-name:latest
 ```
 
 **Note:** Docker Compose is recommended - it handles volumes, environment, and networking automatically.

@@ -6,7 +6,7 @@ This project includes production-ready OpenTelemetry observability that provides
 
 - **LLM Operations**: Google Generative AI SDK calls with request/response details
 - **Structured Logging**: JSON logs with automatic trace correlation for Google Cloud Logging
-- **Agent Callbacks**: Lifecycle logging for agent start/end, model calls, and tool invocations
+- **Agent Callbacks**: Lifecycle logging for whatsapp_bot start/end, model calls, and tool invocations
 
 ## Key Features
 
@@ -77,9 +77,9 @@ OpenTelemetry resource attributes uniquely identify your service instances in tr
 
 | Attribute | Source | Example | Description |
 |-----------|--------|---------|-------------|
-| `service.name` | `AGENT_NAME` env var | `your-agent-name` | Service identifier (set explicitly in `.env`) |
+| `service.name` | `AGENT_NAME` env var | `your-whatsapp_bot-name` | Service identifier (set explicitly in `.env`) |
 | `service.namespace` | `TELEMETRY_NAMESPACE` env var | `default`/`dev`/`stage`/`prod` (deployed) or `local` (dev) | Environment (via Terraform workspace) grouping for traces |
-| `service.version` | `K_REVISION` env var | `your-agent-name-00042-abc` (deployed) or `local` (dev) | Cloud Run revision or local dev indicator |
+| `service.version` | `K_REVISION` env var | `your-whatsapp_bot-name-00042-abc` (deployed) or `local` (dev) | Cloud Run revision or local dev indicator |
 | `service.instance.id` | Generated | `worker-1234-a1b2c3d4e5f6` | Unique process instance (PID + UUID) |
 | `gcp.project_id` | `GOOGLE_CLOUD_PROJECT` env var | `my-project-id` | GCP project for resource correlation |
 
@@ -95,7 +95,7 @@ OpenTelemetry resource attributes uniquely identify your service instances in tr
 
 ## Callback Logging
 
-`LoggingCallbacks` (in `callbacks.py`) logs agent lifecycle events (start/end, model calls, tool invocations) with automatic trace context correlation.
+`LoggingCallbacks` (in `callbacks.py`) logs whatsapp_bot lifecycle events (start/end, model calls, tool invocations) with automatic trace context correlation.
 
 ## Vendor Neutrality & Langfuse Integration
 
@@ -142,8 +142,8 @@ OTEL_EXPORTER_OTLP_HEADERS="x-honeycomb-team=YOUR_API_KEY"
 
 ## Resources
 
-- [Vertex AI | Agent Engine | Trace an Agent](https://cloud.google.com/vertex-ai/generative-ai/docs/agent-engine/manage/tracing)
-- [Google Cloud Observability | Instrument ADK Applications with OpenTelemetry](https://cloud.google.com/stackdriver/docs/instrumentation/ai-agent-adk)
+- [Vertex AI | Agent Engine | Trace an Agent](https://cloud.google.com/vertex-ai/generative-ai/docs/whatsapp_bot-engine/manage/tracing)
+- [Google Cloud Observability | Instrument ADK Applications with OpenTelemetry](https://cloud.google.com/stackdriver/docs/instrumentation/ai-whatsapp_bot-adk)
 - [Google Cloud Trace | View Generative AI Events](https://cloud.google.com/trace/docs/finding-traces#view_generative_ai_events)
 - [OpenTelemetry | Generative AI Instrumentation](https://opentelemetry.io/blog/2024/otel-generative-ai/)
 - [OpenTelemetry | Semantic Conventions for Generative AI](https://opentelemetry.io/docs/specs/semconv/gen-ai/)

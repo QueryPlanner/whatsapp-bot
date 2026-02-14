@@ -9,7 +9,7 @@ Complete reference for all environment variables used in this project.
 **DATABASE_URL**
 - **When:** Always required
 - **Value:** Postgres connection string (e.g., `postgresql://user:pass@localhost:5432/dbname`)
-- **Purpose:** Persistent storage for agent sessions and memory
+- **Purpose:** Persistent storage for whatsapp_bot sessions and memory
 
 ### API Keys
 
@@ -37,8 +37,8 @@ Complete reference for all environment variables used in this project.
 
 **AGENT_NAME**
 - **When:** Optional
-- **Value:** Unique identifier (e.g., `my-agent`)
-- **Default:** `agent`
+- **Value:** Unique identifier (e.g., `my-whatsapp_bot`)
+- **Default:** `whatsapp_bot`
 - **Purpose:** Identifies logs and traces
 
 **LOG_LEVEL**
@@ -63,7 +63,7 @@ Complete reference for all environment variables used in this project.
 
 **RELOAD_AGENTS**
 - **Default:** `FALSE`
-- **Purpose:** Enable agent hot-reloading on file changes (development only)
+- **Purpose:** Enable whatsapp_bot hot-reloading on file changes (development only)
 
 **OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT**
 - **Default:** `FALSE`
