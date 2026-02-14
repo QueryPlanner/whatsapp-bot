@@ -473,9 +473,12 @@ func handleMessage(client *whatsmeow.Client, messageStore *MessageStore, msg *ev
 		// Allow:
 		// 1. Messages from others (!IsFromMe)
 		// 2. Messages from self (IsFromMe) IF they start with "@agent" (to trigger bot in Note to Self)
+		// 3. Must be a DM: server is "s.whatsapp.net" (phone) or "lid" (linked device identity)
 		isTriggerCommand := strings.HasPrefix(strings.ToLower(content), "@agent")
 
-		if (!msg.Info.IsFromMe || isTriggerCommand) && msg.Info.Chat.Server == "s.whatsapp.net" && content != "" {
+		isDM := msg.Info.Chat.Server == "s.whatsapp.net" || msg.Info.Chat.Server == "lid"
+
+		if (!msg.Info.IsFromMe || isTriggerCommand) && isDM && content != "" {
 			go notifyWebhook(chatJID, sender, name, content, msg.Info.Timestamp, msg.Info.IsFromMe, logger)
 		}
 	}

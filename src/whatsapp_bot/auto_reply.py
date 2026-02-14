@@ -146,7 +146,8 @@ async def whatsapp_webhook(
 
     # --- Guard clauses ---
     # Must be a personal chat (not group)
-    if not chat_jid.endswith("@s.whatsapp.net"):
+    # Allow @s.whatsapp.net (phone numbers) and @lid (companion devices/usernames)
+    if not (chat_jid.endswith("@s.whatsapp.net") or chat_jid.endswith("@lid")):
         logger.debug("Skipping non-DM: %s", chat_jid)
         return JSONResponse({"status": "skipped", "reason": "not_dm"})
 
