@@ -10,6 +10,7 @@ from whatsapp import (
     get_last_interaction as whatsapp_get_last_interaction,
     get_message_context as whatsapp_get_message_context,
     send_message as whatsapp_send_message,
+    send_presence as whatsapp_send_presence,
     send_file as whatsapp_send_file,
     send_audio_message as whatsapp_audio_voice_message,
     download_media as whatsapp_download_media
@@ -153,6 +154,23 @@ def get_message_context(
     """
     context = whatsapp_get_message_context(message_id, before, after)
     return context
+
+@mcp.tool()
+def send_presence(recipient: str, presence_type: str) -> Dict[str, Any]:
+    """Send presence update (e.g., "composing" or "paused") to a WhatsApp contact or group.
+
+    Args:
+        recipient: The recipient's phone number or JID
+        presence_type: Use "composing" to show typing or "paused" to stop
+    
+    Returns:
+        A dictionary containing success status and a status message
+    """
+    success, status_message = whatsapp_send_presence(recipient, presence_type)
+    return {
+        "success": success,
+        "message": status_message
+    }
 
 @mcp.tool()
 def send_message(

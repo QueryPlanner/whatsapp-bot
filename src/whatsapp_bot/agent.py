@@ -74,6 +74,7 @@ whatsapp_mcp_toolset = McpToolset(
         "get_direct_chat_by_contact",
         "get_last_interaction",
         "send_message",
+        "send_presence",
     ],
 )
 
