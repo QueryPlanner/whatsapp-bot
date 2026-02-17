@@ -76,6 +76,25 @@ class LoggingCallbacks:
             content_data = user_content.model_dump(exclude_none=True, mode="json")
             self.logger.debug(f"User Content: {content_data}")
 
+            # Extract recipient/sender to show typing indicator
+            # The WhatsApp MCP integration usually passes the JID/sender in the context
+            sender = callback_context.state.get("sender") or callback_context.state.get("chat_jid")
+            if sender:
+                try:
+                    from .agent import whatsapp_mcp_toolset
+                    import asyncio
+                    self.logger.info(f"Setting typing indicator for: {sender}")
+                    # Note: Running this synchronously in the callback for immediate effect
+                    # In a real async environment, we would use await or a separate task
+                    asyncio.create_task(
+                        whatsapp_mcp_toolset.call_tool(
+                            "send_presence", 
+                            {"recipient": sender, "presence_type": "composing"}
+                        )
+                    )
+                except Exception as e:
+                    self.logger.error(f"Failed to send typing indicator: {e}")
+
         return None
 
     def after_agent(self, callback_context: CallbackContext) -> None:
@@ -94,6 +113,22 @@ class LoggingCallbacks:
         if user_content := callback_context.user_content:
             content_data = user_content.model_dump(exclude_none=True, mode="json")
             self.logger.debug(f"User Content: {content_data}")
+
+            # Extract recipient/sender to clear typing indicator
+            sender = callback_context.state.get("sender") or callback_context.state.get("chat_jid")
+            if sender:
+                try:
+                    from .agent import whatsapp_mcp_toolset
+                    import asyncio
+                    self.logger.info(f"Clearing typing indicator for: {sender}")
+                    asyncio.create_task(
+                        whatsapp_mcp_toolset.call_tool(
+                            "send_presence", 
+                            {"recipient": sender, "presence_type": "paused"}
+                        )
+                    )
+                except Exception as e:
+                    self.logger.error(f"Failed to clear typing indicator: {e}")
 
         return None
 

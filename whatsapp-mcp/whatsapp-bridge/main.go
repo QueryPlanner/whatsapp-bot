@@ -675,8 +675,84 @@ func extractDirectPathFromURL(url string) string {
 	return "/" + pathPart
 }
 
+// PresenceRequest represents the request body for the presence API
+type PresenceRequest struct {
+	Recipient string `json:"recipient"`
+	Type      string `json:"type"` // "composing" or "paused"
+}
+
+// Function to send chat presence
+func sendWhatsAppPresence(client *whatsmeow.Client, recipient string, presenceType string) (bool, string) {
+	if !client.IsConnected() {
+		return false, "Not connected to WhatsApp"
+	}
+
+	// Create JID for recipient
+	var recipientJID types.JID
+	var err error
+
+	isJID := strings.Contains(recipient, "@")
+	if isJID {
+		recipientJID, err = types.ParseJID(recipient)
+		if err != nil {
+			return false, fmt.Sprintf("Error parsing JID: %v", err)
+		}
+	} else {
+		recipientJID = types.JID{
+			User:   recipient,
+			Server: "s.whatsapp.net",
+		}
+	}
+
+	var waPresence types.ChatPresence
+	switch presenceType {
+	case "composing":
+		waPresence = types.ChatPresenceComposing
+	case "paused":
+		waPresence = types.ChatPresencePaused
+	default:
+		return false, "Invalid presence type. Use 'composing' or 'paused'."
+	}
+
+	err = client.SendChatPresence(context.Background(), recipientJID, waPresence, types.ChatPresenceMediaText)
+	if err != nil {
+		return false, fmt.Sprintf("Error sending presence: %v", err)
+	}
+
+	return true, fmt.Sprintf("Presence %s sent to %s", presenceType, recipient)
+}
+
 // Start a REST API server to expose the WhatsApp client functionality
 func startRESTServer(client *whatsmeow.Client, messageStore *MessageStore, port int) {
+	// Handler for sending presence
+	http.HandleFunc("/api/presence", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var req PresenceRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request format", http.StatusBadRequest)
+			return
+		}
+
+		if req.Recipient == "" || req.Type == "" {
+			http.Error(w, "Recipient and Type are required", http.StatusBadRequest)
+			return
+		}
+
+		success, message := sendWhatsAppPresence(client, req.Recipient, req.Type)
+		w.Header().Set("Content-Type", "application/json")
+		if !success {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		json.NewEncoder(w).Encode(SendMessageResponse{
+			Success: success,
+			Message: message,
+		})
+	})
+
 	// Handler for sending messages
 	http.HandleFunc("/api/send", func(w http.ResponseWriter, r *http.Request) {
 		// Only allow POST requests
